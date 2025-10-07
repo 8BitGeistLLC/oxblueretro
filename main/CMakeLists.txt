@@ -25,6 +25,7 @@ set(cov_srcs
     "adapter/wired/wii.c"
     "adapter/wired/parallel_1p.c"
     "adapter/wired/parallel_2p.c"
+    "adapter/wired/xadapter.c"
     "adapter/wired/wired.c"
     "adapter/wireless/hid_generic.c"
     "adapter/wireless/ps3.c"
@@ -86,6 +87,7 @@ set(srcs
     "wired/jag_io.c"
     "wired/sea_io.c"
     "wired/wii_i2c.c"
+    "wired/xadapter_spi.c"
     "zephyr/atomic.S"
 )
 
@@ -123,6 +125,9 @@ if(CONFIG_BLUERETRO_COVERAGE)
     target_link_libraries(${COMPONENT_TARGET} gcov)
 endif()
 
+include(${CMAKE_CURRENT_LIST_DIR}/../../shared.cmake)
+idf_build_set_property(COMPILE_DEFINITIONS "-DFIRMWARE_MAGIC=${FIRMWARE_VERSION_16BIT}" APPEND)
+idf_build_set_property(COMPILE_DEFINITIONS "-DSPI_MAGIC=${FIRMWARE_SPI_MAGIC}" APPEND)
 idf_build_set_property(COMPILE_DEFINITIONS "-DBLUERETRO" APPEND)
 idf_build_set_property(COMPILE_DEFINITIONS "-DXT_INTEXC_HOOKS" APPEND)
 

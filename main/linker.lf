@@ -25,6 +25,7 @@ entries:
     jag_io (noflash)
     wii_i2c (noflash)
     devcrypto (noflash)
+    xadapter_spi (noflash)
 
 [sections:gcov_info]
 entries:

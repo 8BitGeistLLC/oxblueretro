@@ -67,4 +67,6 @@ __pycache__/
 .vscode/settings.json
 trace/
 **/.DS_Store
-
+**/xadapter_stm32_fw.h
+CMakeCache.txt
+CMakeFiles/

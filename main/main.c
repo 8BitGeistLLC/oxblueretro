@@ -29,7 +29,11 @@
 #include "tests/coverage.h"
 #include "sdkconfig.h"
 
+#ifdef CONFIG_BLUERETRO_ESP32_MINI
+static uint32_t chip_package = EFUSE_RD_CHIP_VER_PKG_ESP32U4WDH;
+#else
 static uint32_t chip_package = EFUSE_RD_CHIP_VER_PKG_ESP32D0WDQ6;
+#endif
 
 static void wired_init_task(void) {
 #ifdef CONFIG_BLUERETRO_SYSTEM_UNIVERSAL
@@ -57,7 +61,6 @@ static void wired_init_task(void) {
 
     if (config.global_cfg.system_cfg < WIRED_MAX && config.global_cfg.system_cfg != WIRED_AUTO) {
         wired_adapter.system_id = config.global_cfg.system_cfg;
-        ets_printf("# Config override system : %d: %s\n", wired_adapter.system_id, wired_get_sys_name());
     }
 
     for (uint32_t i = 0; i < WIRED_MAX_DEV; i++) {

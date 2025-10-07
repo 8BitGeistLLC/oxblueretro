@@ -12,8 +12,10 @@
 #include "adapter/config.h"
 #include "led.h"
 
-#ifdef CONFIG_BLUERETRO_SYSTEM_SEA_BOARD
+#if defined(CONFIG_BLUERETRO_SYSTEM_SEA_BOARD)
 #define ERR_LED_PIN 32
+#elif defined(CONFIG_BLUERETRO_ESP32_MINI)
+#define ERR_LED_PIN 15
 #else
 #define ERR_LED_PIN 17
 #endif

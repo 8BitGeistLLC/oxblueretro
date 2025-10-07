@@ -6,6 +6,18 @@ menu "BlueRetro"
         help
             Select this to enable HW2 features like port detection.
 
+    config BLUERETRO_ESP32_MINI
+        bool "Enable ESP32-MINI pinout"
+        default n
+        help
+            Select this to enable ESP32-MINI pinout.
+
+    config BLUERETRO_NEGATE_LED_POLARITY
+        bool "Negate LED polarity"
+        default n
+        help
+            Select this to negate LED polarity.
+
     choice
         prompt "Select universal or specific system"
         default BLUERETRO_SYSTEM_UNIVERSAL
@@ -127,6 +139,11 @@ menu "BlueRetro"
             bool "SEA Board"
             help
                 Select this to support only SEA Board.
+
+        config BLUERETRO_SYSTEM_XADAPTER
+            bool "XAdapter"
+            help
+                Select this to support only XAdapter.
 
     endchoice
 

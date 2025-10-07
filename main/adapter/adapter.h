@@ -91,6 +91,7 @@ enum {
     PARALLEL_1P_OD,
     PARALLEL_2P_OD,
     SEA_BOARD,
+    XADAPTER,
     WIRED_MAX,
 };
 

@@ -18,6 +18,7 @@
 #include "snes_spi.h"
 #include "jag_io.h"
 #include "wii_i2c.h"
+#include "xadapter_spi.h"
 #include "adapter/adapter.h"
 #include "wired_bare.h"
 
@@ -52,6 +53,7 @@ static const char *sys_name[WIRED_MAX] = {
     "PARALLEL_1P_OD",
     "PARALLEL_2P_OD",
     "SEA Board",
+    "XADAPTER",
 };
 
 static const wired_init_t wired_init[WIRED_MAX] = {
@@ -79,6 +81,7 @@ static const wired_init_t wired_init[WIRED_MAX] = {
     NULL, /* PARALLEL_1P_OD */
     NULL, /* PARALLEL_2P_OD */
     NULL, /* SEA_BOARD */
+    xadapter_spi_init, /* XADAPTER */
 };
 
 static const wired_port_cfg_t wired_port_cfg[WIRED_MAX] = {
@@ -106,6 +109,7 @@ static const wired_port_cfg_t wired_port_cfg[WIRED_MAX] = {
     NULL, /* PARALLEL_1P_OD */
     NULL, /* PARALLEL_2P_OD */
     NULL, /* SEA_BOARD */
+    xadapter_spi_port_cfg, /* XADAPTER */
 };
 
 void wired_bare_init(uint32_t package) {

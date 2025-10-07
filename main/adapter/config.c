@@ -17,11 +17,26 @@
 #include "bluetooth/mon.h"
 #include "system/manager.h"
 
+// #ifdef CONFIG_BLUERETRO_NEGATE_LED_POLARITY
+// #define LED_PULSE_OFF_DUTY_CYCLE 0x1FFF
+// #define LED_PULSE_ON_DUTY_CYCLE  0
+// #else
+#define LED_PULSE_OFF_DUTY_CYCLE 0
+#define LED_PULSE_ON_DUTY_CYCLE  0x1FFF
+// #endif
+
+// #ifdef CONFIG_BLUERETRO_ESP32_MINI
+// #define LED_PINS {2, 2, 2, 2}
+// #else
+#define LED_PINS {2, 4, 12, 15}
+// #endif
+
+
 struct config config;
 struct hw_config hw_config = {
     .external_adapter = 0,
     .hotplug = 0,
-    .hw1_ports_led_pins = {2, 4, 12, 15},
+    .hw1_ports_led_pins = LED_PINS,
     .led_flash_duty_cycle = 0x80000,
     .led_flash_hz = {2, 4, 8},
     .led_flash_off_duty_cycle = 0,
@@ -31,8 +46,8 @@ struct hw_config hw_config = {
     .led_pulse_fade_cycle_delay_ms = 500,
     .led_pulse_fade_time_ms = 500,
     .led_pulse_hz = 5000,
-    .led_pulse_off_duty_cycle = 0,
-    .led_pulse_on_duty_cycle = 0x1FFF,
+    .led_pulse_off_duty_cycle = LED_PULSE_OFF_DUTY_CYCLE,
+    .led_pulse_on_duty_cycle = LED_PULSE_ON_DUTY_CYCLE,
     .port_cnt = 2,
     .ports_sense_input_polarity = 0,
     .ports_sense_output_ms = 1000,
