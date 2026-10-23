@@ -65,36 +65,6 @@ enum {
     BT_SUBTYPE_MAX,
 };
 
-/* Wired system ID */
-enum {
-    WIRED_AUTO = 0,
-    PARALLEL_1P,
-    PARALLEL_2P,
-    NES,
-    PCE,
-    GENESIS,
-    SNES,
-    CDI,
-    CD32,
-    REAL_3DO,
-    JAGUAR,
-    PSX,
-    SATURN,
-    PCFX,
-    JVS,
-    N64,
-    DC,
-    PS2,
-    GC,
-    WII_EXT,
-    VBOY,
-    PARALLEL_1P_OD,
-    PARALLEL_2P_OD,
-    SEA_BOARD,
-    XADAPTER,
-    WIRED_MAX,
-};
-
 /* Report type ID */
 enum {
     REPORT_NONE = -1,
@@ -555,8 +525,6 @@ struct wired_data {
 };
 
 struct wired_adapter {
-    /* from wired driver */
-    int32_t system_id;
     void *input_q_hdl;
     /* from adapter */
     int32_t driver_mode;
@@ -615,4 +583,3 @@ static inline void bt_type_update(int32_t dev_id, int32_t type, uint32_t subtype
 }
 
 #endif /* _ADAPTER_H_ */
-

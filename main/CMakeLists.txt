@@ -8,24 +8,7 @@ set(cov_srcs
     "adapter/macro.c"
     "adapter/mapping_quirks.c"
     "adapter/memory_card.c"
-    "adapter/wired/npiso.c"
-    "adapter/wired/cdi.c"
-    "adapter/wired/saturn.c"
-    "adapter/wired/pce.c"
-    "adapter/wired/genesis.c"
-    "adapter/wired/real.c"
-    "adapter/wired/jag.c"
-    "adapter/wired/pcfx.c"
-    "adapter/wired/jvs.c"
-    "adapter/wired/n64.c"
-    "adapter/wired/dc.c"
-    "adapter/wired/gc.c"
-    "adapter/wired/ps.c"
-    "adapter/wired/sea.c"
-    "adapter/wired/wii.c"
-    "adapter/wired/parallel_1p.c"
-    "adapter/wired/parallel_2p.c"
-    "adapter/wired/xadapter.c"
+    "adapter/wired/xadapter.cpp"
     "adapter/wired/wired.c"
     "adapter/wireless/hid_generic.c"
     "adapter/wireless/ps3.c"
@@ -52,7 +35,6 @@ set(cov_srcs
     "bluetooth/hidp/sw2.c"
     "system/manager.c"
     "tools/devcrypto.c"
-    "tools/ps1_gameid.c"
 )
 
 set(srcs
@@ -69,25 +51,8 @@ set(srcs
     "system/core0_stall_highint_hdl.S"
     "system/startup.c"
     "tools/stats.c"
-    "wired/detect.c"
     "wired/wired_bare.c"
-    "wired/wired_rtos.c"
-    "wired/npiso_io.c"
-    "wired/cdi_uart.c"
-    "wired/pce_io.c"
-    "wired/sega_io.c"
-    "wired/nsi.c"
-    "wired/maple.c"
-    "wired/jvs_uart.c"
-    "wired/parallel.c"
-    "wired/pcfx_spi.c"
-    "wired/ps_spi.c"
-    "wired/real_spi.c"
-    "wired/snes_spi.c"
-    "wired/jag_io.c"
-    "wired/sea_io.c"
-    "wired/wii_i2c.c"
-    "wired/xadapter_spi.c"
+    "wired/xadapter_spi.cpp"
     "zephyr/atomic.S"
 )
 
@@ -107,6 +72,7 @@ endif()
 idf_component_register(
     SRCS "${srcs}" "${cov_srcs}"
     PRIV_INCLUDE_DIRS "."
+    REQUIRES driver spiffs esp_timer app_update efuse nvs_flash bt queue_bss gamepad
     LDFRAGMENTS linker.lf
 )
 
@@ -125,9 +91,9 @@ if(CONFIG_BLUERETRO_COVERAGE)
     target_link_libraries(${COMPONENT_TARGET} gcov)
 endif()
 
-include(${CMAKE_CURRENT_LIST_DIR}/../../shared.cmake)
-idf_build_set_property(COMPILE_DEFINITIONS "-DFIRMWARE_MAGIC=${FIRMWARE_VERSION_16BIT}" APPEND)
-idf_build_set_property(COMPILE_DEFINITIONS "-DSPI_MAGIC=${FIRMWARE_SPI_MAGIC}" APPEND)
+# include(${CMAKE_CURRENT_LIST_DIR}/../../shared.cmake)
+# idf_build_set_property(COMPILE_DEFINITIONS "-DFIRMWARE_MAGIC=${FIRMWARE_VERSION_16BIT}" APPEND)
+# idf_build_set_property(COMPILE_DEFINITIONS "-DSPI_MAGIC=${FIRMWARE_SPI_MAGIC}" APPEND)
 idf_build_set_property(COMPILE_DEFINITIONS "-DBLUERETRO" APPEND)
 idf_build_set_property(COMPILE_DEFINITIONS "-DXT_INTEXC_HOOKS" APPEND)
 

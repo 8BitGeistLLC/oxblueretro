@@ -6,6 +6,8 @@
 #ifndef _FPGA_CONFIG_H_
 #define _FPGA_CONFIG_H_
 
+#include <stdint.h>
+
 int32_t fpga_config(void);
 
 #endif /* _FPGA_CONFIG_H_ */

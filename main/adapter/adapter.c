@@ -408,10 +408,8 @@ int8_t btn_sign(uint32_t polarity, uint8_t btn_id) {
 }
 
 void IRAM_ATTR adapter_init_buffer(uint8_t wired_id) {
-    if (wired_adapter.system_id != WIRED_AUTO) {
-        wired_adapter.data[wired_id].index = wired_id;
-        wired_init_buffer(config.out_cfg[wired_id].dev_mode, &wired_adapter.data[wired_id]);
-    }
+    wired_adapter.data[wired_id].index = wired_id;
+    wired_init_buffer(config.out_cfg[wired_id].dev_mode, &wired_adapter.data[wired_id]);
 }
 
 void adapter_bridge(struct bt_data *bt_data) {
@@ -427,26 +425,23 @@ void adapter_bridge(struct bt_data *bt_data) {
         TESTS_CMDS_LOG("\"generic_input\": {");
         adapter_debug_wireless_print(ctrl_input);
 #endif
-        if (wired_adapter.system_id != WIRED_AUTO) {
-            if (wired_meta_init(ctrl_output)) {
-                /* Unsupported system */
-                return;
-            }
+        if (wired_meta_init(ctrl_output)) {
+            return;
+        }
 
-            adapter_out_mask[bt_data->base.pids->out_idx] =
-                out_mask = adapter_mapping(&config.in_cfg[bt_data->base.pids->out_idx]);
+        adapter_out_mask[bt_data->base.pids->out_idx] =
+            out_mask = adapter_mapping(&config.in_cfg[bt_data->base.pids->out_idx]);
 
 #ifdef CONFIG_BLUERETRO_ADAPTER_INPUT_MAP_DBG
-            TESTS_CMDS_LOG("\"mapped_input\": {");
-            adapter_debug_wired_print(&ctrl_output[bt_data->base.pids->out_idx]);
+        TESTS_CMDS_LOG("\"mapped_input\": {");
+        adapter_debug_wired_print(&ctrl_output[bt_data->base.pids->out_idx]);
 #endif
-            ctrl_output[bt_data->base.pids->out_idx].index = bt_data->base.pids->out_idx;
-            sys_macro_hdl(&ctrl_output[bt_data->base.pids->out_idx], &bt_data->base.flags[PAD]);
-            for (uint32_t i = 0; out_mask; i++, out_mask >>= 1) {
-                if (out_mask & 0x1) {
-                    ctrl_output[i].index = i;
-                    wired_from_generic(config.out_cfg[i].dev_mode, &ctrl_output[i], &wired_adapter.data[i]);
-                }
+        ctrl_output[bt_data->base.pids->out_idx].index = bt_data->base.pids->out_idx;
+        sys_macro_hdl(&ctrl_output[bt_data->base.pids->out_idx], &bt_data->base.flags[PAD]);
+        for (uint32_t i = 0; out_mask; i++, out_mask >>= 1) {
+            if (out_mask & 0x1) {
+                ctrl_output[i].index = i;
+                wired_from_generic(config.out_cfg[i].dev_mode, &ctrl_output[i], &wired_adapter.data[i]);
             }
         }
     }
@@ -474,7 +469,7 @@ void adapter_fb_stop_timer_stop(uint8_t dev_id) {
 bool adapter_bridge_fb(struct raw_fb *fb_data, struct bt_data *bt_data) {
     bool ret = false;
 
-    if (wired_adapter.system_id != WIRED_AUTO && bt_data && bt_data->base.pids) {
+    if (bt_data && bt_data->base.pids) {
         wired_fb_to_generic(config.out_cfg[bt_data->base.pids->id].dev_mode, fb_data, &fb_input);
 
         if (bt_data->base.pids->type != BT_NONE) {
@@ -515,8 +510,6 @@ void adapter_toggle_fb(uint32_t wired_id, uint32_t duration_us, uint8_t lf_pwr, 
 }
 
 void adapter_init(void) {
-    wired_adapter.system_id = WIRED_AUTO;
-
     /* Save regular DRAM by allocating big sruct w/ only 32bits access in IRAM */
     ctrl_input = heap_caps_aligned_alloc(32, sizeof(struct wireless_ctrl), MALLOC_CAP_32BIT);
     if (ctrl_input == NULL) {
@@ -540,7 +533,5 @@ void adapter_init(void) {
 }
 
 void adapter_meta_init(void) {
-    if (wired_adapter.system_id != WIRED_AUTO) {
-        wired_meta_init(ctrl_output);
-    }
+    wired_meta_init(ctrl_output);
 }

@@ -231,7 +231,7 @@ static int32_t hw_config_lookup_key_name(const char* key) {
 
 static void config_init_struct(struct config *data) {
     data->magic = CONFIG_MAGIC;
-    data->global_cfg.system_cfg = WIRED_AUTO;
+    data->global_cfg.system_cfg = 0;
     data->global_cfg.multitap_cfg = MT_NONE;
     data->global_cfg.inquiry_mode = INQ_AUTO;
     data->global_cfg.banksel = 0;

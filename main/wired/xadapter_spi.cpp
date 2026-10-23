@@ -4,8 +4,18 @@
  */
 
 #include "sdkconfig.h"
+#include <stdint.h>
+#include "wired/xadapter_spi.h"
+
 #if defined(CONFIG_BLUERETRO_SYSTEM_XADAPTER)
-#include <string.h>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+#include "gamepad/gamepad.hpp"
+#include "gamepad/protocol.hpp"
+
+extern "C" {
 #include "soc/io_mux_reg.h"
 #include "esp_private/periph_ctrl.h"
 #include <soc/spi_periph.h>
@@ -24,13 +34,12 @@
 #include "adapter/config.h"
 #include "adapter/memory_card.h"
 #include "adapter/kb_monitor.h"
-#include "adapter/wired/ps.h"
 #include "wired_bare.h"
-#include "wired/xadapter_spi.h"
 #include "hal/spi_slave_hal.h"
 #include "hal/uart_ll.h"
 #include "esp_heap_caps.h"
 #include "esp_log_timestamp.h"
+}
 
 #define SPI3_VSPI_INTR_NUM  20
 #define GPIO_INTR_NUM       21
@@ -38,48 +47,48 @@
 #define SPI3_VSPI_INTR_MASK (1 << SPI3_VSPI_INTR_NUM)
 #define GPIO_INTR_MASK      (1 << GPIO_INTR_NUM)
 
-#define XADAPTER_PACKET_SIZE  32
+static constexpr std::size_t XADAPTER_PACKET_SIZE = SpiProtocol::FrameSize;
 
 #ifdef CONFIG_BLUERETRO_ESP32_MINI
-#define XADAPTER_SPI_MISO_PIN 19
-#define XADAPTER_SPI_MOSI_PIN 23
-#define XADAPTER_SPI_SCK_PIN  18
-#define XADAPTER_SPI_CSN_PIN  5
+static constexpr gpio_num_t XADAPTER_SPI_MISO_PIN = GPIO_NUM_19;
+static constexpr gpio_num_t XADAPTER_SPI_MOSI_PIN = GPIO_NUM_23;
+static constexpr gpio_num_t XADAPTER_SPI_SCK_PIN = GPIO_NUM_18;
+static constexpr gpio_num_t XADAPTER_SPI_CSN_PIN = GPIO_NUM_5;
 #else
-#define XADAPTER_SPI_CSN_PIN  5
-#define XADAPTER_SPI_SCK_PIN  18
-#define XADAPTER_SPI_MISO_PIN 19
-#define XADAPTER_SPI_MOSI_PIN 23
+static constexpr gpio_num_t XADAPTER_SPI_CSN_PIN = GPIO_NUM_5;
+static constexpr gpio_num_t XADAPTER_SPI_SCK_PIN = GPIO_NUM_18;
+static constexpr gpio_num_t XADAPTER_SPI_MISO_PIN = GPIO_NUM_19;
+static constexpr gpio_num_t XADAPTER_SPI_MOSI_PIN = GPIO_NUM_23;
 #endif
 
-typedef enum {
-    XADAPTER_CMD_GAMEPAD = 2,
-    XADAPTER_CMD_RUMBLE,
-} xadapter_cmd_t;
-
-typedef struct __packed {
-    uint16_t fw_magic;
-    uint8_t cmd;
-    uint8_t spi_magic;
-    uint8_t payload[28];
-} xadapter_packet_t;
-
-typedef struct {
+struct xadapter_spi_t {
     uint8_t id;
     spi_slave_hal_context_t ctx;
     uint8_t tx_buf[2][XADAPTER_PACKET_SIZE];
     uint8_t rx_buf[2][XADAPTER_PACKET_SIZE];
     volatile uint8_t xfer_idx;
     struct raw_fb feedback;
-} xadapter_spi_t;
+    uint16_t tx_sequence;
+    GamepadOut last_rumble;
+    bool rumble_initialized;
+};
 
-static xadapter_spi_t xadapter = {0};
+static xadapter_spi_t xadapter{};
+
+static void xadapter_spi_prepare_tx(uint8_t* buffer) {
+    GamepadIn state{};
+    std::memcpy(&state, wired_adapter.data[xadapter.id].output, sizeof(state));
+
+    SpiProtocol::Frame frame{};
+    SpiProtocol::encodeGamepadState(state, xadapter.tx_sequence++, frame);
+    std::memcpy(buffer, frame.bytes, sizeof(frame.bytes));
+}
 
 static void xadapter_spi_queue_xfer(void) {
     spi_slave_hal_context_t *ctx = &xadapter.ctx;
     spi_ll_infifo_full_clr(ctx->hw);
     spi_ll_outfifo_empty_clr(ctx->hw);
-    spi_ll_write_buffer(ctx->hw, ctx->tx_buffer, ctx->bitlen);
+    spi_ll_write_buffer(ctx->hw, static_cast<const uint8_t *>(ctx->tx_buffer), ctx->bitlen);
     spi_ll_slave_reset(ctx->hw);
     spi_ll_clear_int_stat(ctx->hw);
     spi_ll_user_start(ctx->hw);
@@ -100,7 +109,8 @@ static unsigned xadapter_spi_irq(unsigned cause) {
         ctx->rcv_bitlen++;
     }
     if (!ctx->use_dma && ctx->rx_buffer) {
-        spi_ll_read_buffer(ctx->hw, ctx->rx_buffer, (ctx->rcv_bitlen > ctx->bitlen) ? ctx->bitlen : ctx->rcv_bitlen);
+        spi_ll_read_buffer(ctx->hw, static_cast<uint8_t *>(ctx->rx_buffer),
+            (ctx->rcv_bitlen > ctx->bitlen) ? ctx->bitlen : ctx->rcv_bitlen);
     }
 
     uint32_t bytes = (ctx->rcv_bitlen + 7) / 8;
@@ -110,33 +120,38 @@ static unsigned xadapter_spi_irq(unsigned cause) {
     ctx->rx_buffer = xadapter.rx_buf[xadapter.xfer_idx];
     xadapter_spi_queue_xfer();
 
-    memset(xadapter.tx_buf[cmplt_idx], 0, XADAPTER_PACKET_SIZE);
-    xadapter_packet_t* tx_pkt = (xadapter_packet_t*)xadapter.tx_buf[cmplt_idx];
-    tx_pkt->fw_magic = FIRMWARE_MAGIC;
-    tx_pkt->cmd = XADAPTER_CMD_GAMEPAD;
-    tx_pkt->spi_magic = SPI_MAGIC;
-    memcpy(tx_pkt->payload, wired_adapter.data[xadapter.id].output, sizeof(tx_pkt->payload));
-    tx_pkt->payload[sizeof(tx_pkt->payload) - 2] = 0xDE;
-    tx_pkt->payload[sizeof(tx_pkt->payload) - 1] = 0xAD;
+    xadapter_spi_prepare_tx(xadapter.tx_buf[cmplt_idx]);
 
     if (bytes != XADAPTER_PACKET_SIZE) {
-        ets_printf("XAdapter SPI invalid len %d\r\n", bytes);
+        ets_printf("XAdapter SPI invalid len %u\r\n", static_cast<unsigned>(bytes));
         return 0;
     }
-    const xadapter_packet_t* rx_pkt = (const xadapter_packet_t*)xadapter.rx_buf[cmplt_idx];
-    if (rx_pkt->spi_magic != SPI_MAGIC) {
-        ets_printf("XAdapter SPI invalid SPI magic 0x%02X\r\n", rx_pkt->spi_magic);
+
+    SpiProtocol::Frame rx_frame{};
+    std::memcpy(rx_frame.bytes, xadapter.rx_buf[cmplt_idx], sizeof(rx_frame.bytes));
+    GamepadOut rumble{};
+    uint16_t sequence = 0;
+    const SpiProtocol::FrameError frame_error = SpiProtocol::decodeRumble(rx_frame, rumble, sequence);
+    if (frame_error != SpiProtocol::FrameError::None) {
+        ets_printf("XAdapter SPI invalid rumble frame (%u)\r\n", static_cast<unsigned>(frame_error));
         return 0;
     }
-    if (rx_pkt->cmd == XADAPTER_CMD_RUMBLE) {
-        memset(&xadapter.feedback, 0, sizeof(xadapter.feedback));
+
+    if (!xadapter.rumble_initialized
+        || rumble.Left != xadapter.last_rumble.Left
+        || rumble.Right != xadapter.last_rumble.Right) {
+        std::memset(&xadapter.feedback, 0, sizeof(xadapter.feedback));
         xadapter.feedback.header.wired_id = xadapter.id;
         xadapter.feedback.header.type = FB_TYPE_RUMBLE;
-        xadapter.feedback.header.data_len = 2 * sizeof(uint16_t);
-        memcpy(xadapter.feedback.data, rx_pkt->payload, 2 * sizeof(uint16_t));
+        xadapter.feedback.header.data_len = sizeof(GamepadOut);
+        SpiProtocol::writeU16(&xadapter.feedback.data[0], rumble.Left);
+        SpiProtocol::writeU16(&xadapter.feedback.data[2], rumble.Right);
         adapter_q_fb(&xadapter.feedback);
+        xadapter.last_rumble = rumble;
+        xadapter.rumble_initialized = true;
     }
-    memset(xadapter.rx_buf[cmplt_idx], 0, XADAPTER_PACKET_SIZE);
+
+    std::memset(xadapter.rx_buf[cmplt_idx], 0, XADAPTER_PACKET_SIZE);
     return 0;
 }
 
@@ -179,7 +194,7 @@ void xadapter_spi_init(uint32_t package) {
     ctx->tx_lsbfirst = false;
     ctx->mode = 0;
 
-    spi_ll_slave_init(ctx->hw);    
+    spi_ll_slave_init(ctx->hw);
     spi_ll_disable_int(ctx->hw);
     spi_ll_clear_int_stat(ctx->hw);
     spi_ll_set_rx_lsbfirst(ctx->hw, ctx->rx_lsbfirst);
@@ -187,10 +202,15 @@ void xadapter_spi_init(uint32_t package) {
     spi_ll_slave_set_mode(ctx->hw, ctx->mode, ctx->use_dma);
 
     xadapter.xfer_idx = 0;
+    xadapter.tx_sequence = 0;
+    xadapter.rumble_initialized = false;
+    xadapter.last_rumble = {};
     ctx->bitlen = XADAPTER_PACKET_SIZE * 8;
     ctx->tx_buffer = xadapter.tx_buf[xadapter.xfer_idx];
     ctx->rx_buffer = xadapter.rx_buf[xadapter.xfer_idx];
-    
+    xadapter_spi_prepare_tx(xadapter.tx_buf[xadapter.xfer_idx]);
+    xadapter_spi_prepare_tx(xadapter.tx_buf[xadapter.xfer_idx ^ 1]);
+
     spi_ll_dma_rx_fifo_reset(ctx->hw);
     spi_ll_infifo_full_clr(ctx->hw);
     spi_ll_dma_rx_enable(ctx->hw, ctx->use_dma);

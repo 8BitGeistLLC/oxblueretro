@@ -390,9 +390,7 @@ static void boot_btn_hdl(void) {
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }
 
-#ifndef CONFIG_BLUERETRO_SYSTEM_UNIVERSAL
         if (hw_config.external_adapter)
-#endif
         {
             state++;
         }
@@ -508,16 +506,12 @@ static void sys_mgr_power_off(void) {
 }
 
 static int32_t sys_mgr_get_power(void) {
-#ifdef CONFIG_BLUERETRO_SYSTEM_UNIVERSAL
-    return 1;
-#else
     if (hw_config.external_adapter) {
         return 1;
     }
     else {
         return gpio_get_level(POWER_SENSE_PIN);
     }
-#endif
 }
 
 static int32_t sys_mgr_get_boot_btn(void) {
@@ -553,9 +547,7 @@ static void IRAM_ATTR sys_mgr_wired_reinit_task(void) {
         adapter_init_buffer(i);
     }
 
-    if (wired_adapter.system_id < WIRED_MAX) {
-        wired_bare_init(chip_package);
-    }
+    wired_bare_init(chip_package);
 }
 
 static void sys_mgr_wired_reset(void) {
@@ -612,58 +604,12 @@ void sys_mgr_init(uint32_t package) {
     ledc_timer_config(&ledc_timer);
     ledc_channel_config(&ledc_channel);
 
-    while (wired_adapter.system_id <= WIRED_AUTO) {
-        boot_btn_hdl();
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
-
     cmd_q_hdl = xRingbufferCreate(32, RINGBUF_TYPE_NOSPLIT);
     if (cmd_q_hdl == NULL) {
         printf("# Failed to create cmd_q ring buffer\n");
     }
 
-    switch (wired_adapter.system_id) {
-        case GENESIS:
-        case SATURN:
-            hw_config.port_cnt = 2;
-#ifdef CONFIG_BLUERETRO_HW2
-            sense_list[0] = SENSE_P1_ALT_PIN;
-            sense_list[1] = SENSE_P2_ALT_PIN;
-            power_off_pin = POWER_OFF_ALT_PIN;
-#endif
-            break;
-        case JAGUAR:
-            hw_config.port_cnt = 1;
-#ifdef CONFIG_BLUERETRO_HW2
-            sense_list[0] = SENSE_P1_ALT_PIN;
-            sense_list[1] = SENSE_P2_ALT_PIN;
-#endif
-            break;
-        case WII_EXT:
-            hw_config.port_cnt = 2;
-            hw_config.power_pin_is_hold = 1;
-            hw_config.ports_sense_input_polarity = 1;
-            hw_config.power_pin_polarity = 1;
-            hw_config.ports_sense_p3_p4_as_output = 1;
-            break;
-        case N64:
-        case DC:
-        case GC:
-            hw_config.port_cnt = 4;
-            break;
-        case PARALLEL_1P:
-        case PCE:
-        case REAL_3DO:
-        case JVS:
-        case VBOY:
-        case PARALLEL_1P_OD:
-        case SEA_BOARD:
-            hw_config.port_cnt = 1;
-            break;
-        default:
-            hw_config.port_cnt = 2;
-            break;
-    }
+    hw_config.port_cnt = 1;
 
 #ifdef CONFIG_BLUERETRO_BT_H4_TRACE
     hw_config.port_cnt = 1;
@@ -684,9 +630,6 @@ void sys_mgr_init(uint32_t package) {
     err_led_cfg_update();
 
     led_init_cnt = hw_config.port_cnt;
-    if (wired_adapter.system_id == PSX || wired_adapter.system_id == PS2) {
-        led_init_cnt = 4;
-    }
 
 #ifdef CONFIG_BLUERETRO_HW2
     for (uint32_t i = 0; i < hw_config.port_cnt; i++) {

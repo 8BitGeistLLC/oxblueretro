@@ -25,6 +25,8 @@
 #ifndef _BAREMETAL_H_
 #define _BAREMETAL_H_
 
+#include <stdint.h>
+
 int32_t start_app_cpu(void (*app_cpu_main)(void));
 void init_app_cpu_baremetal();
 

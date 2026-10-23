@@ -34,11 +34,6 @@ static void bt_hid_cmd_ps5_trigger_init(struct bt_dev *device) {
     uint32_t map_cnt_l = 0;
     uint32_t map_cnt_r = 0;
 
-    if (wired_adapter.system_id == WIRED_AUTO) {
-        /* Can't configure feature if target system is unknown */
-        return;
-    }
-
     printf("# %s\n", __FUNCTION__);
 
     /* Make sure meta desc is init */

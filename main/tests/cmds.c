@@ -121,8 +121,7 @@ char *tests_cmds_hdlr(struct tests_cmds_pkt *pkt) {
             memcpy(&config.in_cfg[pkt->data[0]], &pkt->data[1], pkt->data_len - 1);
             break;
         case TESTS_CMDS_SYSTEM_ID:
-            /* Set System ID */
-            wired_adapter.system_id = pkt->data[0];
+            printf("# XAdapter is the only supported wired interface\n");
             break;
         case TESTS_CMDS_VID_PID:
             /* Set device VID & PID */

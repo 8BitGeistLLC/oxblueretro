@@ -20,9 +20,7 @@
 #include "adapter/adapter_debug.h"
 #include "adapter/config.h"
 #include "bluetooth/host.h"
-#include "wired/detect.h"
 #include "wired/wired_bare.h"
-#include "wired/wired_rtos.h"
 #include "adapter/memory_card.h"
 #include "system/manager.h"
 #include "tests/ws_srv.h"
@@ -36,31 +34,10 @@ static uint32_t chip_package = EFUSE_RD_CHIP_VER_PKG_ESP32D0WDQ6;
 #endif
 
 static void wired_init_task(void) {
-#ifdef CONFIG_BLUERETRO_SYSTEM_UNIVERSAL
-    detect_init();
-    while (wired_adapter.system_id <= WIRED_AUTO) {
-        if (config.magic == CONFIG_MAGIC && config.global_cfg.system_cfg < WIRED_MAX
-            && config.global_cfg.system_cfg != WIRED_AUTO) {
-            break;
-        }
-        delay_us(1000);
-    }
-    detect_deinit();
-
-    if (wired_adapter.system_id >= 0) {
-        ets_printf("# Detected system : %d: %s\n", wired_adapter.system_id, wired_get_sys_name());
-    }
-#else
-    wired_adapter.system_id = HARDCODED_SYS;
-    ets_printf("# Hardcoded system : %d: %s\n", wired_adapter.system_id, wired_get_sys_name());
-#endif
+    ets_printf("# Wired interface: %s\n", wired_get_sys_name());
 
     while (config.magic != CONFIG_MAGIC) {
         delay_us(1000);
-    }
-
-    if (config.global_cfg.system_cfg < WIRED_MAX && config.global_cfg.system_cfg != WIRED_AUTO) {
-        wired_adapter.system_id = config.global_cfg.system_cfg;
     }
 
     for (uint32_t i = 0; i < WIRED_MAX_DEV; i++) {
@@ -75,9 +52,7 @@ static void wired_init_task(void) {
     memcpy(fb_data.data, sysname, fb_data.header.data_len);
     adapter_q_fb(&fb_data);
 
-    if (wired_adapter.system_id < WIRED_MAX) {
-        wired_bare_init(chip_package);
-    }
+    wired_bare_init(chip_package);
 }
 
 static void wl_init_task(void *arg) {
@@ -123,10 +98,6 @@ static void wl_init_task(void *arg) {
         printf("Bluetooth init fail!\n");
     }
 #endif
-
-    if (wired_adapter.system_id < WIRED_MAX) {
-        wired_rtos_init();
-    }
 
 #ifndef CONFIG_BLUERETRO_QEMU
     mc_init();
