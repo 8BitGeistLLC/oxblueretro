@@ -64,7 +64,8 @@ version.txt
 build/
 __pycache__/
 *.py[cod]
-.vscode/settings.json
+# .vscode/settings.json
+/idf-tools/
 trace/
 **/.DS_Store
 **/xadapter_stm32_fw.h
