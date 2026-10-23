@@ -4,6 +4,7 @@
         "name": "ESP-IDF",
         "cStandard": "c11",
         "cppStandard": "c++17",
+        "compileCommands": "${workspaceFolder}/build/compile_commands.json",
         "includePath": [
           "${workspaceFolder}/build/config",
           "${workspaceFolder}/esp-idf/components/**",
@@ -18,7 +19,7 @@
           ],
           "limitSymbolsToIncludedHeaders": false
         },
-        "compilerPath": "C:\\Programming\\.espressif\\tools\\xtensa-esp32-elf\\esp-12.2.0_20230208\\xtensa-esp32-elf\\bin\\xtensa-esp32-elf-gcc.exe"
+        "compilerPath": "C:\\Users\\jackx\\.espressif\\tools\\xtensa-esp-elf\\esp-14.2.0_20241119\\xtensa-esp-elf\\bin\\xtensa-esp32-elf-gcc.exe"
       }
     ],
     "version": 4

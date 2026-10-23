@@ -1,0 +1,8 @@
+{
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "clangd.enable": true,
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--query-driver=${workspaceFolder}/idf-tools/tools/**/bin/*-gcc.exe,${workspaceFolder}/idf-tools/tools/**/bin/*-g++.exe"
+    ]
+}
