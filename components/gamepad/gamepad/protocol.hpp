@@ -11,10 +11,11 @@ inline constexpr std::size_t FrameSize = 32;
 inline constexpr std::size_t HeaderSize = 8;
 inline constexpr std::size_t MaxPayloadSize = 22;
 inline constexpr std::size_t ChecksumSize = 2;
+inline constexpr std::uint8_t GamepadCount = 4;
 
 inline constexpr std::uint8_t Magic0 = 'O';
 inline constexpr std::uint8_t Magic1 = 'X';
-inline constexpr std::uint8_t Version = 1;
+inline constexpr std::uint8_t Version = 2;
 
 enum class MessageType : std::uint8_t {
     GamepadState = 1, // ESP32 to RP2350
@@ -28,6 +29,7 @@ enum class FrameError : std::uint8_t {
     UnknownMessageType,
     InvalidPayloadLength,
     InvalidReservedByte,
+    InvalidGamepadIndex,
     ChecksumMismatch,
 };
 
@@ -39,8 +41,13 @@ struct Frame {
 // The CRC-16/CCITT-FALSE covers bytes 0 through 29; the checksum occupies bytes 30-31.
 inline constexpr std::size_t PayloadOffset = HeaderSize;
 inline constexpr std::size_t ChecksumOffset = FrameSize - ChecksumSize;
+// Header byte 7 stores the slot in bits 0-1 and connection state in bit 2.
+inline constexpr std::uint8_t GamepadIndexMask = 0x03;
+inline constexpr std::uint8_t ConnectedFlag = 0x04;
+inline constexpr std::uint8_t ReservedFlagsMask = 0xF8;
 
 static_assert(HeaderSize + MaxPayloadSize == ChecksumOffset);
+static_assert(GamepadCount == GamepadIndexMask + 1);
 static_assert(sizeof(Frame) == FrameSize);
 
 inline std::uint16_t crc16(const std::uint8_t* data, std::size_t length) noexcept {
@@ -86,15 +93,28 @@ inline std::uint8_t payloadLength(MessageType type) noexcept {
     return 0;
 }
 
-inline void finalizeFrame(Frame& frame, MessageType type, std::uint16_t sequence) noexcept {
+inline FrameError finalizeFrame(
+    Frame& frame,
+    MessageType type,
+    std::uint8_t gamepadIndex,
+    bool connected,
+    std::uint16_t sequence) noexcept {
+    if (gamepadIndex >= GamepadCount) {
+        for (std::size_t i = 0; i < FrameSize; ++i) {
+            frame.bytes[i] = 0;
+        }
+        return FrameError::InvalidGamepadIndex;
+    }
+
     frame.bytes[0] = Magic0;
     frame.bytes[1] = Magic1;
     frame.bytes[2] = Version;
     frame.bytes[3] = static_cast<std::uint8_t>(type);
     writeU16(&frame.bytes[4], sequence);
     frame.bytes[6] = payloadLength(type);
-    frame.bytes[7] = 0;
+    frame.bytes[7] = gamepadIndex | (connected ? ConnectedFlag : 0);
     writeU16(&frame.bytes[ChecksumOffset], crc16(frame.bytes, ChecksumOffset));
+    return FrameError::None;
 }
 
 inline FrameError validateFrame(const Frame& frame, MessageType expectedType) noexcept {
@@ -111,7 +131,8 @@ inline FrameError validateFrame(const Frame& frame, MessageType expectedType) no
         || frame.bytes[6] != payloadLength(expectedType)) {
         return FrameError::InvalidPayloadLength;
     }
-    if (frame.bytes[7] != 0) {
+    if ((frame.bytes[7] & ReservedFlagsMask) != 0
+        || (expectedType == MessageType::Rumble && (frame.bytes[7] & ConnectedFlag) != 0)) {
         return FrameError::InvalidReservedByte;
     }
     if (readU16(&frame.bytes[ChecksumOffset]) != crc16(frame.bytes, ChecksumOffset)) {
@@ -120,7 +141,20 @@ inline FrameError validateFrame(const Frame& frame, MessageType expectedType) no
     return FrameError::None;
 }
 
-inline void encodeGamepadState(const GamepadIn& state, std::uint16_t sequence, Frame& frame) noexcept {
+inline std::uint8_t readGamepadIndex(const Frame& frame) noexcept {
+    return frame.bytes[7] & GamepadIndexMask;
+}
+
+inline bool isGamepadConnected(const Frame& frame) noexcept {
+    return (frame.bytes[7] & ConnectedFlag) != 0;
+}
+
+inline FrameError encodeGamepadState(
+    const GamepadIn& state,
+    std::uint8_t gamepadIndex,
+    bool connected,
+    std::uint16_t sequence,
+    Frame& frame) noexcept {
     for (std::size_t i = 0; i < FrameSize; ++i) {
         frame.bytes[i] = 0;
     }
@@ -135,10 +169,15 @@ inline void encodeGamepadState(const GamepadIn& state, std::uint16_t sequence, F
     writeU16(&frame.bytes[axesOffset + 2], static_cast<std::uint16_t>(state.JoyLy));
     writeU16(&frame.bytes[axesOffset + 4], static_cast<std::uint16_t>(state.JoyRx));
     writeU16(&frame.bytes[axesOffset + 6], static_cast<std::uint16_t>(state.JoyRy));
-    finalizeFrame(frame, MessageType::GamepadState, sequence);
+    return finalizeFrame(frame, MessageType::GamepadState, gamepadIndex, connected, sequence);
 }
 
-inline FrameError decodeGamepadState(const Frame& frame, GamepadIn& state, std::uint16_t& sequence) noexcept {
+inline FrameError decodeGamepadState(
+    const Frame& frame,
+    GamepadIn& state,
+    std::uint8_t& gamepadIndex,
+    bool& connected,
+    std::uint16_t& sequence) noexcept {
     const FrameError error = validateFrame(frame, MessageType::GamepadState);
     if (error != FrameError::None) {
         return error;
@@ -157,21 +196,31 @@ inline FrameError decodeGamepadState(const Frame& frame, GamepadIn& state, std::
     decoded.JoyRy = readI16(&frame.bytes[axesOffset + 6]);
 
     state = decoded;
+    gamepadIndex = readGamepadIndex(frame);
+    connected = isGamepadConnected(frame);
     sequence = readU16(&frame.bytes[4]);
     return FrameError::None;
 }
 
-inline void encodeRumble(const GamepadOut& rumble, std::uint16_t sequence, Frame& frame) noexcept {
+inline FrameError encodeRumble(
+    const GamepadOut& rumble,
+    std::uint8_t gamepadIndex,
+    std::uint16_t sequence,
+    Frame& frame) noexcept {
     for (std::size_t i = 0; i < FrameSize; ++i) {
         frame.bytes[i] = 0;
     }
 
     writeU16(&frame.bytes[PayloadOffset], rumble.Left);
     writeU16(&frame.bytes[PayloadOffset + 2], rumble.Right);
-    finalizeFrame(frame, MessageType::Rumble, sequence);
+    return finalizeFrame(frame, MessageType::Rumble, gamepadIndex, false, sequence);
 }
 
-inline FrameError decodeRumble(const Frame& frame, GamepadOut& rumble, std::uint16_t& sequence) noexcept {
+inline FrameError decodeRumble(
+    const Frame& frame,
+    GamepadOut& rumble,
+    std::uint8_t& gamepadIndex,
+    std::uint16_t& sequence) noexcept {
     const FrameError error = validateFrame(frame, MessageType::Rumble);
     if (error != FrameError::None) {
         return error;
@@ -182,6 +231,7 @@ inline FrameError decodeRumble(const Frame& frame, GamepadOut& rumble, std::uint
         readU16(&frame.bytes[PayloadOffset + 2]),
     };
     rumble = decoded;
+    gamepadIndex = readGamepadIndex(frame);
     sequence = readU16(&frame.bytes[4]);
     return FrameError::None;
 }
