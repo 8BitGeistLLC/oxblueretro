@@ -19,6 +19,7 @@
 #include "adapter.h"
 #include "adapter_debug.h"
 #include "wired/wired.h"
+#include "wired/xadapter_spi.h"
 #include "wireless/wireless.h"
 #include "macro.h"
 #include "bluetooth/host.h"
@@ -409,7 +410,9 @@ int8_t btn_sign(uint32_t polarity, uint8_t btn_id) {
 
 void IRAM_ATTR adapter_init_buffer(uint8_t wired_id) {
     wired_adapter.data[wired_id].index = wired_id;
+    wired_adapter.data[wired_id].connected = 0;
     wired_init_buffer(config.out_cfg[wired_id].dev_mode, &wired_adapter.data[wired_id]);
+    xadapter_spi_notify_state(wired_id);
 }
 
 void adapter_bridge(struct bt_data *bt_data) {
@@ -419,6 +422,11 @@ void adapter_bridge(struct bt_data *bt_data) {
         if (wireless_to_generic(bt_data, ctrl_input)) {
             /* Unsupported report */
             return;
+        }
+
+        const int32_t out_idx = bt_data->base.pids->out_idx;
+        if (out_idx >= 0 && out_idx < WIRED_MAX_DEV) {
+            wired_adapter.data[out_idx].connected = 1;
         }
 
 #ifdef CONFIG_BLUERETRO_ADAPTER_INPUT_DBG
@@ -442,6 +450,7 @@ void adapter_bridge(struct bt_data *bt_data) {
             if (out_mask & 0x1) {
                 ctrl_output[i].index = i;
                 wired_from_generic(config.out_cfg[i].dev_mode, &ctrl_output[i], &wired_adapter.data[i]);
+                xadapter_spi_notify_state(i);
             }
         }
     }

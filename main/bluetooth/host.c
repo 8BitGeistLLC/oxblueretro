@@ -512,7 +512,11 @@ void bt_host_reset_dev(struct bt_dev *device) {
     return;
 
 reset_dev:
-    adapter_init_buffer(dev_id);
+    if (device->ids.out_idx >= 0 && device->ids.out_idx < WIRED_MAX_DEV) {
+        adapter_init_buffer(device->ids.out_idx);
+    } else {
+        adapter_init_buffer(dev_id);
+    }
     memset(bt_adapter.data[dev_id].raw_src_mappings, 0, sizeof(*bt_adapter.data[0].raw_src_mappings) * REPORT_MAX);
     memset(bt_adapter.data[dev_id].reports, 0, sizeof(bt_adapter.data[0].reports));
     memset(&bt_adapter.data[dev_id].base, 0, sizeof(bt_adapter.data[0].base));

@@ -14,6 +14,7 @@ extern "C" {
 
 void xadapter_spi_init(uint32_t package);
 void xadapter_spi_port_cfg(uint16_t mask);
+void xadapter_spi_notify_state(uint8_t gamepad_index);
 
 #ifdef __cplusplus
 }

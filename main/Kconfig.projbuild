@@ -24,6 +24,23 @@ menu "BlueRetro"
         help
             Enable the SPI gamepad adapter interface.
 
+    config BLUERETRO_XADAPTER_PLAYER_COUNT
+        int "XAdapter player count"
+        depends on BLUERETRO_SYSTEM_XADAPTER
+        range 1 4
+        default 4
+        help
+            Number of indexed gamepad slots exchanged over the XAdapter SPI link.
+
+    config BLUERETRO_XADAPTER_IRQ_GPIO
+        int "XAdapter data-ready GPIO"
+        depends on BLUERETRO_SYSTEM_XADAPTER
+        range 0 33
+        default 4
+        help
+            ESP32 output pin connected to the RP master data-ready input. The
+            signal is active-low and stays asserted while gamepad updates wait.
+
     menu "Debug"
 
         config BLUERETRO_QEMU

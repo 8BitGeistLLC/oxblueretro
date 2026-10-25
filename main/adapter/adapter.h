@@ -508,6 +508,7 @@ struct wired_data {
     void *fb_timer_hdl;
     /* Bi-directional */
     atomic_t flags;
+    volatile uint8_t connected;
     /* from wired driver */
     uint32_t frame_cnt;
     /* from adapter */
